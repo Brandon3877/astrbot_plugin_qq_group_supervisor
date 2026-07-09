@@ -105,14 +105,14 @@ class EnhancedQQGroupSupervisor(Star):
 
         if not filter_result.should_collect:
             if self.loaded_config.runtime.log_collected_messages:
-                logger.debug(f"[EQGS] ignored message: {filter_result.reason}")
+                logger.debug(f"[QQ群监督员] 已忽略消息: {filter_result.reason}")
             return
 
         assert filter_result.message is not None
 
         if self.loaded_config.runtime.log_collected_messages:
             logger.info(
-                "[EQGS] collected message: "
+                "[QQ群监督员] 已收集消息: "
                 f"group={filter_result.message.group_id}, "
                 f"user={filter_result.message.user_id}, "
                 f"message={filter_result.message.message_id}"
@@ -140,21 +140,27 @@ class EnhancedQQGroupSupervisor(Star):
         if not text:
             return
 
-        # Avoid replying to every private message. Only parse messages that look
-        # like review commands. Unrelated messages will not let pending reply exit.
+        # The message does not look anything like an execute / cancel
+        # command, so ignore the message without doing anything.
         if detect_decision_kind(text) is None and "review_" not in text:
             return
 
         operation_handler = self._update_operation_handler_from_event(event)
 
         if operation_handler is None:
-            logger.warning("[EQGS] Cannot handle admin reply: operation handler unavailable.")
+            logger.warning("[QQ群监督员] 未能处理回复: 行动处理程序不可用。")
             return
 
         sender_id = extract_sender_id(event)
 
         if not sender_id:
-            logger.warning("[EQGS] Cannot handle admin reply: missing sender_id.")
+            logger.warning("[QQ群监督员] 未能处理回复: 缺失 sender_id")
+            return
+        
+        # The message, although looks like an execute / cancel command,
+        # comes from a someone who is not configured as a plugin
+        # admin for any qq group. Do nothing to his message.
+        if not self._is_known_plugin_admin(sender_id):
             return
 
         decision = self.admin_review_manager.parse_admin_decision(
@@ -165,14 +171,14 @@ class EnhancedQQGroupSupervisor(Star):
         if decision.kind in {"unknown", "ambiguous"}:
             await operation_handler.send_private_message(
                 target_user_id=sender_id,
-                text=f"【群聊监督】{decision.message}",
+                text=f"【QQ群监督员】{decision.message}",
             )
             return
 
         if decision.review is None or decision.review_id is None:
             await operation_handler.send_private_message(
                 target_user_id=sender_id,
-                text="【群聊监督】未找到对应的待审核请求。",
+                text="【QQ群监督员】未找到对应的待审核请求。",
             )
             return
 
@@ -182,7 +188,7 @@ class EnhancedQQGroupSupervisor(Star):
             if review is None:
                 await operation_handler.send_private_message(
                     target_user_id=sender_id,
-                    text="【群聊监督】该待审核请求已经不存在，可能已被处理或过期。",
+                    text="【QQ群监督员】该待审核请求已经不存在，可能已被处理或过期。",
                 )
                 return
 
@@ -218,6 +224,21 @@ class EnhancedQQGroupSupervisor(Star):
             )
             return
 
+    def _is_known_plugin_admin(self, user_id: str) -> bool:
+        user_id = normalize_id(user_id)
+
+        if not user_id:
+            return False
+
+        for admin in self.loaded_config.plugin_admins:
+            if normalize_id(admin.admin_qq) == user_id:
+                return True
+
+        if self.admin_review_manager.list_pending_for_admin(user_id):
+            return True
+
+        return False
+
     async def _handle_bundle_result(
         self,
         *,
@@ -228,7 +249,7 @@ class EnhancedQQGroupSupervisor(Star):
         bundle = bundle_result.bundle
 
         logger.info(
-            "[EQGS] handling bundle: "
+            "[QQ群监督员] handling bundle: "
             f"bundle_id={bundle.bundle_id}, "
             f"group={bundle.group_id}, "
             f"count={len(bundle.messages)}, "
@@ -243,14 +264,14 @@ class EnhancedQQGroupSupervisor(Star):
             )
         except Exception as exc:
             logger.error(
-                "[EQGS] bundle handling failed: "
+                "[QQ群监督员] bundle handling failed: "
                 f"bundle_id={bundle.bundle_id}, error={exc}\n"
                 f"{traceback.format_exc()}"
             )
             await self._notify_admin_error(
                 bundle=bundle,
                 operation_handler=operation_handler,
-                title="群聊监督处理异常",
+                title="QQ群监督员处理异常",
                 error_text=f"{exc}\n\n{traceback.format_exc()}",
             )
 
@@ -281,7 +302,7 @@ class EnhancedQQGroupSupervisor(Star):
 
         if self.loaded_config.runtime.log_llm_raw_response:
             logger.info(
-                "[EQGS] raw LLM response: "
+                "[QQ群监督员] raw LLM response: "
                 f"bundle_id={bundle.bundle_id}\n{llm_raw_response}"
             )
 
@@ -291,7 +312,7 @@ class EnhancedQQGroupSupervisor(Star):
             await self._notify_admin_error(
                 bundle=bundle,
                 operation_handler=operation_handler,
-                title="群聊监督 LLM 输出解析失败",
+                title="QQ群监督员 LLM 输出解析失败",
                 error_text=(
                     f"{exc}\n\n"
                     "【LLM 原始输出】\n"
@@ -320,6 +341,46 @@ class EnhancedQQGroupSupervisor(Star):
             operation_handler=operation_handler,
         )
 
+    async def _send_admin_review_message(
+        self,
+        *,
+        handler: OneBotV11OperationHandler,
+        admin_qq: str,
+        text: str,
+        bundle: MessageBundle,
+        validation_result: ValidationResult,
+    ) -> None:
+        from .admin_review_manager import build_admin_notification_nodes
+
+        bot_user_id = ""
+        try:
+            bot_user_id = await handler.get_login_user_id()
+        except Exception:
+            bot_user_id = "10000"
+
+        nodes = build_admin_notification_nodes(
+            bot_user_id=bot_user_id,
+            bot_nickname="QQ群监督员",
+            admin_text=text,
+            bundle=bundle,
+            validation_result=validation_result,
+            include_trigger_messages=True,
+        )
+
+        try:
+            await handler.send_private_forward_message(
+                target_user_id=admin_qq,
+                nodes=nodes,
+            )
+        except Exception as exc:
+            logger.warning(
+                f"[QQ群监督员] 未能发送私聊转发消息，改用纯文本形式发送: {exc}"
+            )
+            await handler.send_private_message(
+                target_user_id=admin_qq,
+                text=text,
+            )
+
     async def _handle_admin_plan(
         self,
         *,
@@ -329,32 +390,38 @@ class EnhancedQQGroupSupervisor(Star):
         operation_handler: OneBotV11OperationHandler | None,
     ) -> None:
         if plan.kind == "none":
-            logger.info(f"[EQGS] admin plan: none, reason={plan.reason}")
+            logger.info(f"[QQ群监督员] 管理员计划: none, 原因={plan.reason}")
             return
 
         handler = operation_handler or self._get_operation_handler_for_group(bundle.group_id)
 
         if plan.kind == "notify_only":
             if plan.admin_qq and handler is not None:
-                await handler.send_private_message(
-                    target_user_id=plan.admin_qq,
+                await self._send_admin_review_message(
+                    handler=handler,
+                    admin_qq=plan.admin_qq,
                     text=plan.message_text,
+                    bundle=bundle,
+                    validation_result=validation_result,
                 )
             else:
                 logger.warning(
-                    "[EQGS] notify_only requested but admin or operation handler is missing."
+                    "[QQ群监督员] 仅通知模式已触发，但是管理员或行动处理程序缺失，执行失败。"
                 )
             return
 
         if plan.kind == "review_required":
             if plan.admin_qq and handler is not None:
-                await handler.send_private_message(
-                    target_user_id=plan.admin_qq,
+                await self._send_admin_review_message(
+                    handler=handler,
+                    admin_qq=plan.admin_qq,
                     text=plan.message_text,
+                    bundle=bundle,
+                    validation_result=validation_result,
                 )
             else:
                 logger.warning(
-                    "[EQGS] review_required requested but admin or operation handler is missing."
+                    "[QQ群监督员] 请求执行模式已触发，但是管理员或行动处理程序缺失，执行失败。"
                 )
             return
 
@@ -363,6 +430,23 @@ class EnhancedQQGroupSupervisor(Star):
 
             handler = handler or self._last_operation_handler
 
+            if handler is None:
+                logger.warning(
+                    "[EQGS] auto_execute requested but no operation handler is available."
+                )
+                return
+
+            # 1. Send the built plan before execution.
+            if plan.admin_qq and plan.message_text:
+                await self._send_admin_review_message(
+                    handler=handler,
+                    admin_qq=plan.admin_qq,
+                    text=plan.message_text,
+                    bundle=bundle,
+                    validation_result=validation_result,
+                )
+
+            # 2. Execute validated actions.
             self.executor.update_runtime(self.loaded_config.runtime)
             self.executor.update_operation_handler(handler)
 
@@ -371,7 +455,8 @@ class EnhancedQQGroupSupervisor(Star):
                 actions=actions,
             )
 
-            if plan.admin_qq and handler is not None and plan.message_text:
+            # 3. Send execution result after execution.
+            if plan.admin_qq:
                 execution_text = build_admin_execution_finished_text(
                     review=None,
                     bundle=bundle,
@@ -383,6 +468,7 @@ class EnhancedQQGroupSupervisor(Star):
                     target_user_id=plan.admin_qq,
                     text=execution_text,
                 )
+
             return
 
     async def _call_llm(
@@ -452,11 +538,11 @@ class EnhancedQQGroupSupervisor(Star):
         try:
             handler = create_operation_handler_from_event(event)
         except OperationHandlerError as exc:
-            logger.warning(f"[EQGS] failed to create operation handler: {exc}")
+            logger.warning(f"[QQ群监督员] 未能创建行动处理程序: {exc}")
             return None
         except Exception as exc:
             logger.warning(
-                "[EQGS] unexpected error while creating operation handler: "
+                "[QQ群监督员] 创建行动处理程序时，遇到了意料之外的错误: "
                 f"{exc}\n{traceback.format_exc()}"
             )
             return None
@@ -488,7 +574,7 @@ class EnhancedQQGroupSupervisor(Star):
 
         if admin is None:
             logger.warning(
-                "[EQGS] cannot notify admin about error: no admin configured.\n"
+                "[QQ群监督员] 未能将错误通知给管理员: 未配置任何管理员。\n"
                 f"{title}\n{error_text}"
             )
             return
@@ -497,7 +583,7 @@ class EnhancedQQGroupSupervisor(Star):
 
         if handler is None:
             logger.warning(
-                "[EQGS] cannot notify admin about error: no operation handler available.\n"
+                "[QQ群监督员] 未能将错误通知给管理员: 没有可用的行动处理程序。\n"
                 f"{title}\n{error_text}"
             )
             return
@@ -521,7 +607,7 @@ class EnhancedQQGroupSupervisor(Star):
 
         self._stopping = False
         self._timer_task = asyncio.create_task(self._background_timer_loop())
-        logger.info("[EQGS] background timer started.")
+        logger.info("[QQ群监督员] 后台计时器已开始运行。")
 
     async def _background_timer_loop(self) -> None:
         while not self._stopping:
@@ -533,7 +619,7 @@ class EnhancedQQGroupSupervisor(Star):
                 break
             except Exception as exc:
                 logger.error(
-                    "[EQGS] background timer error: "
+                    "[QQ群监督员] 后台计时器错误: "
                     f"{exc}\n{traceback.format_exc()}"
                 )
 
@@ -557,7 +643,7 @@ class EnhancedQQGroupSupervisor(Star):
 
             if handler is None:
                 logger.warning(
-                    "[EQGS] pending review expired but no operation handler is available: "
+                    "[QQ群监督员] 等待管理员审核超时，但是没有可用的行动处理程序: "
                     f"{review.review_id}"
                 )
                 continue
@@ -565,7 +651,7 @@ class EnhancedQQGroupSupervisor(Star):
             await handler.send_private_message(
                 target_user_id=review.admin_qq,
                 text=(
-                    "【群聊监督审核已过期】\n"
+                    "【QQ群监督员审核已过期】\n"
                     f"审核ID：{review.review_id}\n"
                     f"群号：{review.group_id}\n"
                     f"消息包ID：{review.bundle.bundle_id}\n"

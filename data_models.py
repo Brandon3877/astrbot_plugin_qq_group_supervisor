@@ -199,6 +199,10 @@ class PluginAdmin:
     group_id: str | None
     admin_qq: str
 
+    # Reserves specific group only auto execute / request execute.
+    # True / False means override, while None means follow general.
+    review_before_execute: bool | None = None
+
 
 @dataclass
 class MessageBundle:

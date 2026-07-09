@@ -177,7 +177,7 @@
       "max_actions_per_bundle": {
         "description": "每个打包消息的最多可执行操作数",
         "type": "int",
-        "default": 6,
+        "default": 10,
         "hint": "防止LLM一次性建议过多操作，设为0代表不限制。"
       },
       "allow_multi_action_same_target": {
@@ -231,6 +231,12 @@
                 "description": "插件管理员的QQ号",
                 "type": "string",
                 "default": ""
+              },
+              "review_before_execute": {
+                "description": "此群先由插件管理员审核",
+                "type": "bool",
+                "default": true,
+                "hint": "仅影响此群聊。通过这个开关，可以实现对一些群聊单独配置自动执行或询问执行。"
               }
             }
           }
@@ -341,21 +347,22 @@
     "type": "object",
     "items": {
       "dry_run": {
-        "description": "演习模式",
+        "description": "演习测试模式",
         "type": "bool",
-        "default": true,
-        "hint": "开启后，即使 enable_actions 打开，也只打印将要执行的操作，不真正执行。开发阶段建议保持开启。"
+        "default": false,
+        "hint": "开启后，即使 enable_actions 打开，也只打印将要执行的操作，不真正执行。"
       },
       "log_collected_messages": {
-        "description": "记录收集到的消息",
+        "description": "收集消息时提示",
         "type": "bool",
-        "default": false
+        "default": false,
+        "hint": "在测试插件是否正常接受并纳入消息时，可以开启。"
       },
       "log_llm_raw_response": {
-        "description": "记录 LLM 原始输出",
+        "description": "记录LLM原始输出",
         "type": "bool",
         "default": true,
-        "hint": "开发解析器时很有用；正式使用时可关闭。"
+        "hint": "在LLM完成分析时，在控制台展示LLM的完整回复，在测试LLM兼容性时十分有用。"
       }
     }
   }

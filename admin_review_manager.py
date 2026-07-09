@@ -6,7 +6,7 @@ import re
 import time
 import uuid
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
 from .config_loader import LoadedConfig, normalize_id
 from .data_models import (
@@ -178,7 +178,7 @@ class AdminReviewManager:
                 reason="actions_disabled_and_no_admin",
             )
 
-        if runtime.admin_review_enabled:
+        if loaded_config.should_review_before_execute(bundle.group_id):
             if admin is None:
                 return AdminHandlingPlan(
                     kind="none",
@@ -506,6 +506,66 @@ def build_admin_notification_text(
     lines.append(action_status)
 
     return "\n".join(lines)
+
+
+def build_admin_notification_nodes(
+    *,
+    bot_user_id: str,
+    bot_nickname: str,
+    admin_text: str,
+    bundle: MessageBundle,
+    validation_result: ValidationResult,
+    include_trigger_messages: bool = True,
+) -> list[dict[str, Any]]:
+    from .operation_handler import build_forward_node
+
+    nodes: list[dict[str, Any]] = []
+
+    nodes.append(
+        build_forward_node(
+            user_id=bot_user_id,
+            nickname=bot_nickname,
+            content=admin_text,
+        )
+    )
+
+    if not include_trigger_messages:
+        return nodes
+
+    message_ids: list[str] = []
+    seen: set[str] = set()
+
+    for action in validation_result.valid_actions:
+        if action.target_message_id and action.target_message_id not in seen:
+            seen.add(action.target_message_id)
+            message_ids.append(action.target_message_id)
+
+        for message_id in action.based_on_message_ids:
+            if message_id not in seen:
+                seen.add(message_id)
+                message_ids.append(message_id)
+
+    for message_id in message_ids:
+        message = bundle.find_message(message_id)
+
+        if message is None:
+            continue
+
+        nodes.append(
+            build_forward_node(
+                user_id=message.user_id,
+                nickname=message.nickname,
+                content=(
+                    f"消息ID: {message.message_id}\n"
+                    f"用户ID: {message.user_id}\n"
+                    f"群身份: {message.role}\n"
+                    f"群等级: {message.group_level}\n"
+                    f"消息内容:\n{message.text}"
+                ),
+            )
+        )
+
+    return nodes
 
 
 def build_admin_execution_finished_text(

@@ -114,6 +114,23 @@ class LoadedConfig:
                 return admin
 
         return None
+    
+    def should_review_before_execute(self, group_id: str) -> bool:
+        """
+        Selection order:
+        1. If this group has a group-specific admin with review_before_execute set,
+           use that value.
+        2. Otherwise use the global configuration admin_review.enabled.
+        """
+        group_id = normalize_id(group_id)
+
+        admin = self.get_plugin_admin(group_id)
+
+        if admin is not None and admin.group_id == group_id:
+            if admin.review_before_execute is not None:
+                return admin.review_before_execute
+
+        return self.runtime.admin_review_enabled
 
 
 def load_config(raw_config: Any) -> LoadedConfig:
@@ -214,8 +231,8 @@ def load_runtime_config(raw_config: Any) -> RuntimeConfig:
             False,
         ),
         max_actions_per_bundle=as_int(
-            get_value(action_control, "max_actions_per_bundle", 6),
-            default=6,
+            get_value(action_control, "max_actions_per_bundle", 10),
+            default=10,
             minimum=0,
         ),
         allow_multi_action_same_target=as_bool(
@@ -232,7 +249,7 @@ def load_runtime_config(raw_config: Any) -> RuntimeConfig:
             True,
         ),
 
-        dry_run=as_bool(get_value(debug, "dry_run", True), True),
+        dry_run=as_bool(get_value(debug, "dry_run", False), False),
         log_collected_messages=as_bool(
             get_value(debug, "log_collected_messages", False),
             False,
@@ -331,6 +348,10 @@ def load_plugin_admins(raw_config: Any) -> list[PluginAdmin]:
                     display_name=display_name or "专属管理员",
                     group_id=group_number,
                     admin_qq=admin_qq,
+                    review_before_execute=as_bool(
+                        get_value(item, "review_before_execute", True),
+                        True,
+                    ),
                 )
             )
         else:
@@ -339,6 +360,7 @@ def load_plugin_admins(raw_config: Any) -> list[PluginAdmin]:
                     display_name=display_name or "通用管理员",
                     group_id=None,
                     admin_qq=admin_qq,
+                    review_before_execute=None,
                 )
             )
 

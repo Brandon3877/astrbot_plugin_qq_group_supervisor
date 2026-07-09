@@ -203,6 +203,20 @@ class OneBotV11OperationHandler(ModerationOperationHandler):
         )
 
         return result.to_text()
+    
+    async def send_private_forward_message(
+        self,
+        *,
+        target_user_id: str,
+        nodes: list[dict[str, Any]],
+    ) -> str:
+        result = await self.call_action(
+            "send_private_forward_msg",
+            user_id=to_onebot_id(target_user_id),
+            messages=nodes,
+        )
+
+        return result.to_text()
 
     async def send_group_text(
         self,
@@ -366,6 +380,22 @@ def build_warning_message(
     return " ".join(parts)
 
 
+def build_forward_node(
+    *,
+    user_id: str,
+    nickname: str,
+    content: str,
+) -> dict[str, Any]:
+    return {
+        "type": "node",
+        "data": {
+            "user_id": to_onebot_id(user_id),
+            "nickname": nickname,
+            "content": escape_cq_text(content),
+        },
+    }
+
+
 def escape_cq_text(text: str) -> str:
     """
     Escape text for OneBot v11 CQ-code string messages.
@@ -489,10 +519,10 @@ __all__ = [
     "create_operation_handler_from_event",
     "call_client_api",
     "build_warning_message",
+    "send_private_forward_message",
+    "build_forward_node",
     "escape_cq_text",
     "sanitize_qq_id_for_cq",
     "to_onebot_id",
-    "to_onebot_id_int",
-    "to_onebot_id_str",
     "extract_onebot_data"
 ]
