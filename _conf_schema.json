@@ -1,0 +1,362 @@
+{
+  "basic": {
+    "description": "基础设置",
+    "type": "object",
+    "items": {
+      "enabled": {
+        "description": "启用插件",
+        "type": "bool",
+        "default": false,
+        "hint": "关闭时插件不会收集消息，也不会调用LLM。建议首次安装后先保持关闭，完成配置后启用。"
+      },
+      "monitor_all_groups": {
+        "description": "监控群聊的模式",
+        "type": "string",
+        "options": [
+          "只监控以下群聊",
+          "不监控以下群聊",
+          "监控所有群聊"
+        ],
+        "default": "只监控以下群聊",
+        "hint": "选择监控群聊的模式，包含白名单、黑名单、或所有群聊。选择监控所有群聊时，下面的列表不生效。"
+      },
+      "enabled_group_ids": {
+        "description": "设置群号列表",
+        "type": "list",
+        "default": [],
+        "hint": "根据上面的选项，此列表中的群号将作为白名单或黑名单生效。"
+      }
+    }
+  },
+  "bundle": {
+    "description": "消息打包设置",
+    "type": "object",
+    "items": {
+      "bundle_message_limit": {
+        "description": "积累此数量消息后发送给LLM",
+        "type": "int",
+        "default": 50,
+        "hint": "达到(包含)这个数量后立即打包发送给LLM。设为0代表仅根据固定时间打包。"
+      },
+      "bundle_time_limit_seconds": {
+        "description": "最长等待时间（秒）",
+        "type": "int",
+        "default": 600,
+        "hint": "如果距离上次打包已过去所设时间，但未达到打包所需消息数，将直接触发打包。设为0代表仅根据消息条数打包。"
+      },
+      "min_messages_to_analyze": {
+        "description": "打包所需最少消息数",
+        "type": "int",
+        "default": 1,
+        "hint": "低于这个数量时，即便已经到达最长等待时间，也不会打包，而是继续等待。"
+      }
+    }
+  },
+  "record_filter": {
+    "description": "消息收集过滤",
+    "type": "object",
+    "items": {
+      "max_record_group_level": {
+        "description": "豁免群员等级",
+        "type": "int",
+        "slider": {
+          "min": 0,
+          "max": 100,
+          "step": 1
+        },
+        "default": 30,
+        "hint": "成员群内等级达到(包含)此值时，不记录其消息，设为0代表不过滤。"
+      },
+      "record_role_mode": {
+        "description": "记录谁的消息",
+        "type": "string",
+        "default": "仅普通群员",
+        "options": [
+          "仅普通群员",
+          "普通群员和管理员",
+          "群员、管理员和群主"
+        ],
+        "hint": "这个选项会和群等级过滤同时生效。"
+      },
+      "ignore_self_messages": {
+        "description": "忽略机器人自己的消息",
+        "type": "bool",
+        "default": true
+      },
+      "ignore_empty_messages": {
+        "description": "忽略空白消息",
+        "type": "bool",
+        "default": true
+      },
+      "ignore_command_messages": {
+        "description": "忽略指令消息",
+        "type": "bool",
+        "default": false,
+        "hint": "以 /、#、*、% 开头的消息开启后将不被收集，具体前缀可以在代码中扩展。"
+      }
+    }
+  },
+  "llm": {
+    "description": "LLM 诊断设置",
+    "type": "object",
+    "items": {
+      "provider_id": {
+        "description": "用于诊断的模型提供商",
+        "type": "string",
+        "default": "",
+        "_special": "select_provider",
+        "hint": "选择 WebUI 中已经配置好的模型提供商。留空时将使用默认模型。"
+      },
+      "group_rules": {
+        "description": "自定义群聊规范",
+        "type": "template_list",
+        "hint": "可以在这里自定义群规范，LLM将以群规范为基准，判断一个群员的发言是否违反规范。若未设置，将使用默认的群聊规范，支持为不同群聊单独定制。",
+        "templates": {
+          "general": {
+            "name": "通用群规范",
+            "hint": "未单独设置的群聊，将使用通用群规范。",
+            "items": {
+              "display_name": {
+                "description": "展示名称",
+                "type": "string",
+                "default": "通用群规范"
+              },
+              "group_rule": {
+                "description": "群聊规范的具体文本",
+                "type": "text",
+                "default": "群聊规范：\n1. 拉踩引战：禁止通过贬低、对比等方式挑起群体/个人对立，或故意发布争议性言论诱导争吵。\n2. 骚扰他人：禁止未经同意频繁私聊、@他人，或以言语、图片等形式对群友进行持续性打扰、纠缠。\n3. 人身攻击：禁止辱骂、嘲讽、造谣、人肉搜索，或使用侮辱性称呼恶意针对特定群友。\n4. 恶意刷屏：禁止连续发送无意义内容、重复消息、无意义长文本霸屏，干扰正常交流。\n5. 违规推广：禁止发布广告、未经同意分享其他群聊、兼职/引流信息。\n6. 传播有害信息：禁止发布涉政敏感、色情暴力、谣言诈骗及其他违反法律法规的内容。"
+              }
+            }
+          },
+          "group_specific": {
+            "name": "专属群规范",
+            "hint": "配置专属于此群聊的群规范。",
+            "items": {
+              "display_name": {
+                "description": "展示名称",
+                "type": "string",
+                "default": "专属群规范"
+              },
+              "group_number": {
+                "description": "群号",
+                "type": "string",
+                "default": ""
+              },
+              "group_rule": {
+                "description": "群聊规范的具体文本",
+                "type": "text",
+                "default": "群聊规范：\n1. 拉踩引战：禁止通过贬低、对比等方式挑起群体/个人对立，或故意发布争议性言论诱导争吵。\n2. 骚扰他人：禁止未经同意频繁私聊、@他人，或以言语、图片等形式对群友进行持续性打扰、纠缠。\n3. 人身攻击：禁止辱骂、嘲讽、造谣、人肉搜索，或使用侮辱性称呼恶意针对特定群友。\n4. 恶意刷屏：禁止连续发送无意义内容、重复消息、无意义长文本霸屏，干扰正常交流。\n5. 违规推广：禁止发布广告、未经同意分享其他群聊、兼职/引流信息。\n6. 传播有害信息：禁止发布涉政敏感、色情暴力、谣言诈骗及其他违反法律法规的内容。"
+              }
+            }
+          }
+        }
+      },
+      "temperature": {
+        "description": "诊断温度",
+        "type": "float",
+        "default": 0.2,
+        "hint": "建议较低，减少输出格式不稳定。"
+      },
+      "max_tokens": {
+        "description": "最大输出 Tokens",
+        "type": "int",
+        "default": 4096
+      }
+    }
+  },
+  "action_control": {
+    "description": "机器人群管操作",
+    "type": "object",
+    "items": {
+      "enable_actions": {
+        "description": "允许机器人执行实际操作",
+        "type": "bool",
+        "default": false,
+        "hint": "开启时，插件会自动执行或询问执行建议操作；关闭时只进行诊断并建议操作，但不会执行或询问执行实际操作。"
+      },
+      "max_actions_per_bundle": {
+        "description": "每个打包消息的最多可执行操作数",
+        "type": "int",
+        "default": 6,
+        "hint": "防止LLM一次性建议过多操作，设为0代表不限制。"
+      },
+      "allow_multi_action_same_target": {
+        "description": "允许同一用户/消息被执行多个操作",
+        "type": "bool",
+        "default": true,
+        "hint": "例如同一条消息可以同时触发撤回，并对发送者禁言。如果关闭，将只执行撤回，或不包含撤回时的最轻操作。"
+      }
+    }
+  },
+  "admin_review": {
+    "description": "插件管理员",
+    "type": "object",
+    "items": {
+      "admin_qq": {
+        "description": "插件管理员QQ号",
+        "type": "template_list",
+        "hint": "用于接收诊断结果和执行确认请求。如果LLM判断存在不规范群员，插件管理员将会收到私聊消息，支持为不同群聊单独定制。",
+        "templates": {
+          "general": {
+            "name": "通用管理员",
+            "hint": "对于未单独设置的群聊，将发送至通用插件管理员。",
+            "items": {
+              "display_name": {
+                "description": "展示名称",
+                "type": "string",
+                "default": "通用管理员"
+              },
+              "admin_qq_number": {
+                "description": "插件管理员的QQ号",
+                "type": "string",
+                "default": ""
+              }
+            }
+          },
+          "group_specific": {
+            "name": "专属管理员",
+            "hint": "此群聊的相关消息，将发送至群聊专属插件管理员。",
+            "items": {
+              "display_name": {
+                "description": "展示名称",
+                "type": "string",
+                "default": "专属管理员"
+              },
+              "group_number": {
+                "description": "群号",
+                "type": "string",
+                "default": ""
+              },
+              "admin_qq_number": {
+                "description": "插件管理员的QQ号",
+                "type": "string",
+                "default": ""
+              }
+            }
+          }
+        }
+      },
+      "enabled": {
+        "description": "先由插件管理员审核",
+        "type": "bool",
+        "default": true,
+        "hint": "开启后，有问题且存在建议操作时，先发给管理员确认，确认后才执行群管操作。"
+      },
+      "notify_admin_when_no_action": {
+        "description": "有问题但无建议操作时仍通知管理员",
+        "type": "bool",
+        "default": true,
+        "hint": "如果LLM判断群员行为不符合规范，但未给出建议操作，仍通知管理员。建议保持开启。"
+      }
+    }
+  },
+  "punishments": {
+    "description": "处罚行为等级条目",
+    "type": "template_list",
+    "hint": "请按照从轻到重的顺序添加条目。LLM只能从这里选择处罚，不能自己创建处罚。",
+    "templates": {
+      "warn": {
+        "name": "警告",
+        "hint": "向用户发送警告文本。",
+        "display_item": "display_name",
+        "hide_hint_in_list": true,
+        "items": {
+          "display_name": {
+            "description": "展示名称",
+            "type": "string",
+            "default": "警告"
+          },
+          "warning_text": {
+            "description": "警告用语",
+            "type": "text",
+            "default": "请注意你的言辞，避免继续影响群聊秩序。"
+          },
+          "quote_trigger_message": {
+            "description": "发送警告时引用触发消息",
+            "type": "bool",
+            "default": true,
+            "hint": "开启后，机器人在发送警告时，会尝试引用触发该警告的消息。"
+          },
+          "rewrite_by_llm": {
+            "description": "由LLM改写警告用语",
+            "type": "bool",
+            "default": false,
+            "hint": "开启后，LLM可以根据语境，按照原意适度改写警告文本。"
+          }
+        }
+      },
+      "recall": {
+        "name": "撤回",
+        "hint": "撤回指定消息。",
+        "display_item": "display_name",
+        "hide_hint_in_list": true,
+        "items": {
+          "display_name": {
+            "description": "展示名称",
+            "type": "string",
+            "default": "撤回"
+          }
+        }
+      },
+      "mute": {
+        "name": "禁言",
+        "hint": "禁言指定用户一段时间。",
+        "display_item": "display_name",
+        "hide_hint_in_list": true,
+        "items": {
+          "display_name": {
+            "description": "展示名称",
+            "type": "string",
+            "default": "禁言"
+          },
+          "duration_minutes": {
+            "description": "禁言时长（分钟）",
+            "type": "int",
+            "default": 5
+          }
+        }
+      },
+      "kick": {
+        "name": "踢走",
+        "hint": "将用户移出群聊。",
+        "display_item": "display_name",
+        "hide_hint_in_list": true,
+        "items": {
+          "display_name": {
+            "description": "展示名称",
+            "type": "string",
+            "default": "踢走"
+          },
+          "blacklist": {
+            "description": "同时拉黑",
+            "type": "bool",
+            "default": true
+          }
+        }
+      }
+    }
+  },
+  "debug": {
+    "description": "调试设置",
+    "type": "object",
+    "items": {
+      "dry_run": {
+        "description": "演习模式",
+        "type": "bool",
+        "default": true,
+        "hint": "开启后，即使 enable_actions 打开，也只打印将要执行的操作，不真正执行。开发阶段建议保持开启。"
+      },
+      "log_collected_messages": {
+        "description": "记录收集到的消息",
+        "type": "bool",
+        "default": false
+      },
+      "log_llm_raw_response": {
+        "description": "记录 LLM 原始输出",
+        "type": "bool",
+        "default": true,
+        "hint": "开发解析器时很有用；正式使用时可关闭。"
+      }
+    }
+  }
+}

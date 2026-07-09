@@ -1,0 +1,7 @@
+name: QQ群监督员
+desc: QQ群监督员是一个用于群员消息审核的AstrBot插件，结合LLM分析群员消息，可以自动执行群管行为。
+help: 请在WebUI进行插件配置
+version: v1.0.1
+astrbot_version: ">=4.10.4"
+author: 蓝皮机Golem
+repo: https://github.com/Brandon3877/astrbot_plugin_qq_group_supervisor
