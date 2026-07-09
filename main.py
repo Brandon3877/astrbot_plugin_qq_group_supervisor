@@ -192,9 +192,11 @@ class EnhancedQQGroupSupervisor(Star):
                 )
                 return
 
-            await operation_handler.send_private_message(
-                target_user_id=sender_id,
+            await self._send_admin_text_as_forward_node(
+                handler=operation_handler,
+                admin_qq=sender_id,
                 text=build_admin_cancelled_text(review),
+                node_title="QQ群监督员操作已取消",
             )
             return
 
@@ -218,9 +220,11 @@ class EnhancedQQGroupSupervisor(Star):
                 execution_summary=execution_result.to_summary_text(review.bundle),
             )
 
-            await operation_handler.send_private_message(
-                target_user_id=sender_id,
+            await self._send_admin_text_as_forward_node(
+                handler=operation_handler,
+                admin_qq=sender_id,
                 text=execution_text,
+                node_title="QQ群监督员操作结果",
             )
             return
 
@@ -381,6 +385,51 @@ class EnhancedQQGroupSupervisor(Star):
                 text=text,
             )
 
+    async def _send_admin_text_as_forward_node(
+        self,
+        *,
+        handler: OneBotV11OperationHandler,
+        admin_qq: str,
+        text: str,
+        node_title: str = "QQ群监督员",
+    ) -> None:
+        """
+        Send one text block to plugin admin as a private forwarded-message node.
+
+        If forward sending fails, fall back to normal private text message.
+        """
+
+        from .operation_handler import build_forward_node
+
+        try:
+            bot_user_id = await handler.get_login_user_id()
+        except Exception:
+            bot_user_id = "10000"
+
+        nodes = [
+            build_forward_node(
+                user_id=bot_user_id,
+                nickname=node_title,
+                content=text,
+            )
+        ]
+
+        try:
+            await handler.send_private_forward_message(
+                target_user_id=admin_qq,
+                nodes=nodes,
+            )
+        except Exception as exc:
+            logger.warning(
+                "[EQGS] failed to send private forward node, "
+                f"fallback to plain private message: {exc}"
+            )
+
+            await handler.send_private_message(
+                target_user_id=admin_qq,
+                text=text,
+            )
+
     async def _handle_admin_plan(
         self,
         *,
@@ -464,9 +513,11 @@ class EnhancedQQGroupSupervisor(Star):
                     execution_summary=execution_result.to_summary_text(bundle),
                 )
 
-                await handler.send_private_message(
-                    target_user_id=plan.admin_qq,
+                await self._send_admin_text_as_forward_node(
+                    handler=handler,
+                    admin_qq=plan.admin_qq,
                     text=execution_text,
+                    node_title="QQ群监督员操作结果",
                 )
 
             return
@@ -596,9 +647,11 @@ class EnhancedQQGroupSupervisor(Star):
             f"{error_text}"
         )
 
-        await handler.send_private_message(
-            target_user_id=admin.admin_qq,
+        await self._send_admin_text_as_forward_node(
+            handler=handler,
+            admin_qq=admin.admin_qq,
             text=text,
+            node_title="QQ群监督员异常报告",
         )
 
     def _start_background_timer(self) -> None:
@@ -648,8 +701,9 @@ class EnhancedQQGroupSupervisor(Star):
                 )
                 continue
 
-            await handler.send_private_message(
-                target_user_id=review.admin_qq,
+            await self._send_admin_text_as_forward_node(
+                handler=handler,
+                admin_qq=review.admin_qq,
                 text=(
                     "【QQ群监督员审核已过期】\n"
                     f"审核ID：{review.review_id}\n"
@@ -657,6 +711,7 @@ class EnhancedQQGroupSupervisor(Star):
                     f"消息包ID：{review.bundle.bundle_id}\n"
                     "该审核请求已超时，不会执行建议操作。"
                 ),
+                node_title="QQ群监督员审核已过期",
             )
 
     async def terminate(self):
