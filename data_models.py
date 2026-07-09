@@ -344,12 +344,23 @@ class ValidatedAction:
 
         target_text = "\n".join(target_parts) if target_parts else "目标: 未指定"
 
+        operation_text = self._action_operation_text()
+
         return (
-            f"操作: {self.punishment.to_admin_text()}\n"
+            f"操作: {operation_text}\n"
             f"{target_text}\n"
             f"依据消息ID: {', '.join(self.based_on_message_ids) if self.based_on_message_ids else '无'}\n"
             f"理由: {self.reason}"
         )
+
+    def _action_operation_text(self) -> str:
+        if self.punishment.type == "warn":
+            mode = "LLM改写" if self.punishment.rewrite_by_llm else "直接发送"
+            quote = "引用触发消息" if self.punishment.quote_trigger_message else "不引用触发消息"
+            text = self.warning_text or self.punishment.warning_text or ""
+            return f"{self.punishment.display_name}：{text}（{quote}, {mode}）"
+
+        return self.punishment.to_admin_text()
 
 
 @dataclass
