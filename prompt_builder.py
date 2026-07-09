@@ -98,9 +98,14 @@ def build_prompt_parts(
 6. based_on_message_ids 必须只包含 INPUT_JSON 中真实存在的 message_id。
 7. 同一条消息或同一用户可以被建议多个操作，例如 撤回 + 警告 + 禁言。
 8. 如果处罚类型是 warn：
-   - 若该处罚的 rewrite_by_llm 为 true，你可以根据语境改写 warning_text，但必须保持原意和礼貌。
-   - 若 rewrite_by_llm 为 false，warning_text 必须照抄该处罚中的 warning_text。
-   - 若该处罚的 quote_trigger_message 为 true，必须尽量填写最能代表警告原因的 target_message_id，以便机器人引用该消息发送警告。
+   - 若该处罚的 rewrite_by_llm 为 true，你需要重新生成 warning_text。
+   - 改写后的 warning_text 应包含两部分：
+     1) 用一句话指出该用户刚才的哪类行为不符合群规；
+     2) 保留原始警告用语的提醒意图。
+   - 改写后的 warning_text 应适合直接发送到群聊中，语气克制、礼貌、明确，并且符合真人管理员用语习惯。
+   - 不能编造未在消息包中出现的事实。
+   - 若该处罚的 rewrite_by_llm 为 false，warning_text 必须照抄该处罚中的 warning_text，不能进行任何改写。
+   - 若该处罚的 quote_trigger_message 为 true，则 target_message_id 必须尽量填写最能代表警告原因的 message_id，以便机器人引用该消息发送警告。
 9. 如果处罚类型不是 warn，warning_text 必须为 null。
 
 严重程度 severity 只能使用：
@@ -210,7 +215,12 @@ def build_punishment_payload(
             )
 
         if punishment.rewrite_by_llm:
-            data["warning_rule"] = "可以根据语境改写 warning_text，但必须保持原意。"
+            data["warning_rule"] = (
+                "需要重新生成 warning_text。"
+                "新的 warning_text 应简短说明用户刚才造成了什么问题，或违反了什么群规。"
+                "然后保留原始警告用语的提醒意图，改写但不改变、创造新意图。"
+                "语气克制、礼貌、明确，并且符合真人管理员用语习惯、适合直接发送到群聊。"
+            )
         else:
             data["warning_rule"] = "必须照抄本处罚的 warning_text。"
 
@@ -261,7 +271,11 @@ def build_output_format() -> dict[str, Any]:
                     "作为依据的消息ID，只能来自 INPUT_JSON.known_message_ids"
                 ],
                 "reason": "建议执行该操作的简短理由",
-                "warning_text": "仅 warn 类型填写；非 warn 类型必须为 null",
+                "warning_text": (
+                    "仅 warn 类型填写；非 warn 类型必须为 null。",
+                    "若为 warn 类型，且该 warn 处罚的 rewrite_by_llm=true，需要输出重新生成后的警告文本；"
+                    "若为 warn 类型，且该 warn 处罚的 rewrite_by_llm=false，则必须照抄原始警告文本。"
+                ),
             }
         ],
     }

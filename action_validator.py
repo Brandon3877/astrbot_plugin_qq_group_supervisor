@@ -295,13 +295,61 @@ def _resolve_warning_text(
     if punishment.type != "warn":
         return None
 
-    configured_text = punishment.warning_text or ""
+    configured_text = (punishment.warning_text or "").strip()
 
-    if punishment.rewrite_by_llm:
-        llm_text = suggested_action.warning_text.strip() if suggested_action.warning_text else ""
-        return llm_text or configured_text
+    if not punishment.rewrite_by_llm:
+        return configured_text
 
-    return configured_text
+    llm_text = suggested_action.warning_text.strip() if suggested_action.warning_text else ""
+
+    # Good case: LLM actually generated a rewritten warning.
+    if llm_text and not _is_same_warning_text(llm_text, configured_text):
+        return llm_text
+
+    # Robust fallback: if LLM forgot to rewrite, create a slightly expanded
+    # warning based on the action reason instead of sending only the original text.
+    return _build_fallback_rewritten_warning_text(
+        configured_text=configured_text,
+        reason=suggested_action.reason,
+    )
+
+
+def _is_same_warning_text(text_a: str, text_b: str) -> bool:
+    """
+    Loose equality check for warning text.
+
+    This avoids treating a tiny whitespace/punctuation difference as a real rewrite.
+    """
+    normalized_a = _normalize_warning_text(text_a)
+    normalized_b = _normalize_warning_text(text_b)
+
+    return normalized_a == normalized_b
+
+
+def _normalize_warning_text(text: str) -> str:
+    return (
+        text.strip()
+        .replace(" ", "")
+        .replace("\n", "")
+        .replace("\r", "")
+        .replace("，", ",")
+        .replace("。", ".")
+        .replace("！", "!")
+        .replace("？", "?")
+    )
+
+
+def _build_fallback_rewritten_warning_text(
+    *,
+    configured_text: str,
+    reason: str,
+) -> str:
+    reason = reason.strip()
+
+    if reason:
+        return f"你的发言不符合群聊规范：{reason}。{configured_text}"
+
+    return f"你的发言可能不符合群聊规范。{configured_text}"
 
 
 def _validate_diagnosis_ids(
