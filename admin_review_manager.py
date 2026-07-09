@@ -442,10 +442,16 @@ def build_admin_notification_text(
     lines.append("【整体判断】")
     lines.append(llm_result.message_bundle_assessment or "无")
 
-    if llm_result.message_diagnoses:
+    problem_message_diagnoses = [
+        diagnosis
+        for diagnosis in llm_result.message_diagnoses
+        if diagnosis.severity != "none" or diagnosis.rule_violated.strip()
+    ]
+
+    if problem_message_diagnoses:
         lines.append("")
         lines.append("【问题消息】")
-        for diagnosis in llm_result.message_diagnoses:
+        for diagnosis in problem_message_diagnoses:
             message = bundle.find_message(diagnosis.message_id)
             nickname = message.nickname if message is not None else "未知昵称"
 
@@ -457,10 +463,16 @@ def build_admin_notification_text(
                 f"{diagnosis.summary}"
             )
 
-    if llm_result.user_diagnoses:
+    problem_user_diagnoses = [
+        diagnosis
+        for diagnosis in llm_result.user_diagnoses
+        if diagnosis.severity != "none"
+    ]
+
+    if problem_user_diagnoses:
         lines.append("")
         lines.append("【问题用户】")
-        for diagnosis in llm_result.user_diagnoses:
+        for diagnosis in problem_user_diagnoses:
             nickname = find_nickname_by_user_id(bundle, diagnosis.user_id)
             lines.append(
                 f"- {nickname} / {diagnosis.user_id} | "

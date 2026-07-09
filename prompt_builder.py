@@ -92,14 +92,16 @@ def build_prompt_parts(
 处罚选择规则：
 1. 如果 normal 为 true，actions 必须是空数组。
 2. 如果发现问题但没有合适的处罚，normal 应为 false，actions 可以是空数组。
-3. recall 类型处罚必须填写 target_message_id，并且 target_user_id 应填写该消息发送者。
-4. warn、mute、kick 类型处罚必须填写 target_user_id。
-5. based_on_message_ids 必须只包含 INPUT_JSON 中真实存在的 message_id。
-6. 同一条消息或同一用户可以被建议多个操作，例如 撤回 + 警告 + 禁言。
-7. 如果处罚类型是 warn：
+3. recall 类型处罚用于撤回单条消息。若有多条消息都应撤回，必须为每一条需要撤回的消息分别输出一个 recall action，不要只撤回其中一条再把其他消息放进 based_on_message_ids。
+4. recall 类型处罚必须填写 target_message_id，并且 target_user_id 应填写该消息发送者。
+5. warn、mute、kick 类型处罚必须填写 target_user_id。
+6. based_on_message_ids 必须只包含 INPUT_JSON 中真实存在的 message_id。
+7. 同一条消息或同一用户可以被建议多个操作，例如 撤回 + 警告 + 禁言。
+8. 如果处罚类型是 warn：
    - 若该处罚的 rewrite_by_llm 为 true，你可以根据语境改写 warning_text，但必须保持原意和礼貌。
    - 若 rewrite_by_llm 为 false，warning_text 必须照抄该处罚中的 warning_text。
-8. 如果处罚类型不是 warn，warning_text 必须为 null。
+   - 若该处罚的 quote_trigger_message 为 true，必须尽量填写最能代表警告原因的 target_message_id，以便机器人引用该消息发送警告。
+9. 如果处罚类型不是 warn，warning_text 必须为 null。
 
 严重程度 severity 只能使用：
 - none
@@ -197,7 +199,15 @@ def build_punishment_payload(
     data = punishment.to_llm_dict()
 
     if punishment.type == "warn":
-        data["target_requirement"] = "必须填写 target_user_id。target_message_id 可填写触发警告的消息。"
+        if punishment.quote_trigger_message:
+            data["target_requirement"] = (
+                "必须填写 target_user_id。必须尽量填写最能代表触发警告原因的 "
+                "target_message_id，因为该警告配置为引用触发消息。"
+            )
+        else:
+            data["target_requirement"] = (
+                "必须填写 target_user_id。target_message_id 可填写触发警告的消息。"
+            )
 
         if punishment.rewrite_by_llm:
             data["warning_rule"] = "可以根据语境改写 warning_text，但必须保持原意。"
