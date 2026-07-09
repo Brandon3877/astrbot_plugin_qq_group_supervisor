@@ -295,7 +295,7 @@ def _parse_actions(value: Any) -> list[SuggestedAction]:
                 ),
                 based_on_message_ids=based_on_message_ids,
                 reason=_parse_str(obj["reason"], f"{location}.reason"),
-                warning_text=_parse_optional_str(
+                warning_text=_parse_optional_warning_text(
                     obj["warning_text"],
                     f"{location}.warning_text",
                 ),
@@ -353,6 +353,61 @@ def _parse_optional_str(value: Any, location: str) -> str | None:
     text = str(value).strip()
 
     if not text:
+        return None
+
+    return text
+
+
+def _parse_optional_warning_text(value: Any, location: str) -> str | None:
+    """
+    Parse warning_text.
+
+    Required ideal format:
+        "warning_text": "..."
+
+    Tolerated recovery format:
+        "warning_text": ["..."]
+
+    This tolerance is only used on warning_text, because it is non-destructive
+    text content. For other fields, this tolerence is not allowed.
+    """
+
+    if value is None:
+        return None
+
+    if isinstance(value, list):
+        parts: list[str] = []
+
+        for index, item in enumerate(value):
+            item_location = f"{location}[{index}]"
+
+            if item is None:
+                continue
+
+            if isinstance(item, (dict, list)):
+                raise LLMParseError(
+                    f"{item_location} must be a string if warning_text is a list."
+                )
+
+            text = str(item).strip()
+
+            if text:
+                parts.append(text)
+
+        if not parts:
+            return None
+
+        return "\n".join(parts)
+
+    if isinstance(value, dict):
+        raise LLMParseError(f"{location} must be a string, null, or list of strings.")
+
+    text = str(value).strip()
+
+    if not text:
+        return None
+
+    if text.lower() == "null":
         return None
 
     return text

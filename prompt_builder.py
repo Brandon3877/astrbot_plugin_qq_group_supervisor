@@ -102,6 +102,7 @@ def build_prompt_parts(
    - 改写后的 warning_text 应包含两部分：
      1) 用一句话指出该用户刚才的哪类行为不符合群规；
      2) 保留原始警告用语的提醒意图。
+   - 重新生成的 warning_text 必须是一个字符串，不能是数组、对象或字符串列表。
    - 改写后的 warning_text 应适合直接发送到群聊中，语气克制、礼貌、明确，并且符合真人管理员用语习惯。
    - 不能编造未在消息包中出现的事实。
    - 若该处罚的 rewrite_by_llm 为 false，warning_text 必须照抄该处罚中的 warning_text，不能进行任何改写。
@@ -220,6 +221,8 @@ def build_punishment_payload(
                 "新的 warning_text 应简短说明用户刚才造成了什么问题，或违反了什么群规。"
                 "然后保留原始警告用语的提醒意图，改写但不改变、创造新意图。"
                 "语气克制、礼貌、明确，并且符合真人管理员用语习惯、适合直接发送到群聊。"
+                "warning_text 必须是一个 JSON 字符串，例如："
+                "\"warning_text\": \"你多次重复发送相同内容，已经影响群聊正常交流。请注意你的言行，避免继续影响群聊秩序。\""
             )
         else:
             data["warning_rule"] = "必须照抄本处罚的 warning_text。"
@@ -275,6 +278,7 @@ def build_output_format() -> dict[str, Any]:
                     "仅 warn 类型填写；非 warn 类型必须为 null。",
                     "若为 warn 类型，且该 warn 处罚的 rewrite_by_llm=true，需要输出重新生成后的警告文本；"
                     "若为 warn 类型，且该 warn 处罚的 rewrite_by_llm=false，则必须照抄原始警告文本。"
+                    "若为 warn 类型，填写的必须是 JSON 字符串，不能是数组；若非 warn 类型，则为 null。"
                 ),
             }
         ],
