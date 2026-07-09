@@ -356,7 +356,7 @@
         "description": "收集消息时提示",
         "type": "bool",
         "default": false,
-        "hint": "在测试插件是否正常接受并纳入消息时，可以开启。"
+        "hint": "在测试插件是否正常接收并纳入消息时，可以开启。"
       },
       "log_llm_raw_response": {
         "description": "记录LLM原始输出",
