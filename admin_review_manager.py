@@ -298,8 +298,8 @@ class AdminReviewManager:
         - 取消
         - 执行 review_123_...
         - 取消 review_123_...
-        - 同意
-        - 确认
+        - cancel
+        - stop
         """
 
         admin_qq = normalize_id(admin_qq)
@@ -622,35 +622,33 @@ def build_admin_cancelled_text(review: PendingReview) -> str:
 def detect_decision_kind(text: str) -> Literal["execute", "cancel"] | None:
     """
     Detect admin decision from reply text.
-
-    We keep this intentionally simple to avoid accidental execution.
     """
 
     normalized = text.strip().lower()
 
     execute_words = {
         "执行",
-        "确认执行",
-        "同意",
-        "同意执行",
-        "确认",
-        "通过",
-        "yes",
-        "y",
-        "ok",
-        "execute",
-        "run",
+        #"确认执行",
+        #"同意",
+        #"同意执行",
+        #"确认",
+        #"通过",
+        #"yes",
+        #"y",
+        #"ok",
+        #"execute",
+        #"run",
     }
 
     cancel_words = {
         "取消",
         "不执行",
-        "拒绝",
-        "否",
-        "no",
-        "n",
+        #"拒绝",
+        #"否",
+        #"no",
+        #"n",
         "cancel",
-        "stop",
+        #"stop",
     }
 
     first_token = normalized.split(maxsplit=1)[0]
