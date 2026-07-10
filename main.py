@@ -413,6 +413,7 @@ class EnhancedQQGroupSupervisor(Star):
         text: str,
         bundle: MessageBundle,
         validation_result: ValidationResult,
+        review_id: str | None = None,
     ) -> None:
         from .admin_review_manager import build_admin_notification_nodes
 
@@ -428,6 +429,7 @@ class EnhancedQQGroupSupervisor(Star):
             admin_text=text,
             bundle=bundle,
             validation_result=validation_result,
+            review_id=review_id,
             include_trigger_messages=True,
         )
 
@@ -521,12 +523,19 @@ class EnhancedQQGroupSupervisor(Star):
 
         if plan.kind == "review_required":
             if plan.admin_qq and handler is not None:
+                review_id = (
+                    plan.pending_review.review_id
+                    if plan.pending_review is not None
+                    else None
+                )
+
                 await self._send_admin_review_message(
                     handler=handler,
                     admin_qq=plan.admin_qq,
                     text=plan.message_text,
                     bundle=bundle,
                     validation_result=validation_result,
+                    review_id=review_id,
                 )
             else:
                 logger.warning(

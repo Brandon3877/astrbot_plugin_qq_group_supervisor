@@ -518,12 +518,14 @@ def build_admin_notification_nodes(
     admin_text: str,
     bundle: MessageBundle,
     validation_result: ValidationResult,
+    review_id: str | None = None,
     include_trigger_messages: bool = True,
 ) -> list[dict[str, Any]]:
     from .operation_handler import build_forward_node
 
     nodes: list[dict[str, Any]] = []
 
+    # The full diagnostic report.
     nodes.append(
         build_forward_node(
             user_id=bot_user_id,
@@ -532,6 +534,26 @@ def build_admin_notification_nodes(
         )
     )
 
+    # Short, independently copyable commands.
+    # These are only added for an admin review request.
+    if review_id:
+        nodes.append(
+            build_forward_node(
+                user_id=bot_user_id,
+                nickname="执行操作",
+                content=f"执行 {review_id}",
+            )
+        )
+
+        nodes.append(
+            build_forward_node(
+                user_id=bot_user_id,
+                nickname="取消操作",
+                content=f"取消 {review_id}",
+            )
+        )
+
+    # Sends evidence-messages in forwarded form.
     if not include_trigger_messages:
         return nodes
 
