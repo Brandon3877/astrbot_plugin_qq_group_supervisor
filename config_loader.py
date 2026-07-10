@@ -244,14 +244,18 @@ def load_runtime_config(raw_config: Any) -> RuntimeConfig:
             get_value(admin_review, "enabled", True),
             True,
         ),
+        notify_admin_when_no_action=as_bool(
+            get_value(admin_review, "notify_admin_when_no_action", True),
+            True,
+        ),
         admin_review_timeout_minutes=as_int(
             get_value(admin_review, "review_timeout_minutes", 30),
             default=30,
             minimum=1,
         ),
-        notify_admin_when_no_action=as_bool(
-            get_value(admin_review, "notify_admin_when_no_action", True),
-            True,
+        notify_admin_when_timeout=as_bool(
+            get_value(admin_review, "notify_admin_when_timeout", False),
+            False,
         ),
 
         dry_run=as_bool(get_value(debug, "dry_run", False), False),

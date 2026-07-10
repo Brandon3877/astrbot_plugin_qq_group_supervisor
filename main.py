@@ -761,6 +761,17 @@ class EnhancedQQGroupSupervisor(Star):
                 )
                 continue
 
+            if not self.loaded_config.runtime.notify_admin_when_timeout:
+                logger.info(
+                    "[QQ群监督员] 等待管理员审核超时。根据策略，不额外通知管理员，仅记录。"
+                    "【QQ群监督员审核已过期】\n"
+                    f"审核ID：{review.review_id}\n"
+                    f"群号：{review.group_id}\n"
+                    f"消息包ID：{review.bundle.bundle_id}\n"
+                    "该审核请求已超时，不会执行建议操作。"
+                )
+                continue
+
             await self._send_admin_text_as_forward_node(
                 handler=handler,
                 admin_qq=review.admin_qq,
