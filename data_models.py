@@ -54,6 +54,7 @@ class RuntimeConfig:
     allow_multi_action_same_target: bool = True
 
     admin_review_enabled: bool = True
+    admin_review_timeout_minutes: int = 30
     notify_admin_when_no_action: bool = True
 
     dry_run: bool = True

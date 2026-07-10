@@ -231,6 +231,9 @@ class AdminReviewManager:
             if admin is not None
             else "",
         )
+    
+    def update_timeout_seconds(self, review_timeout_seconds: int) -> None:
+        self.review_timeout_seconds = max(1, int(review_timeout_seconds))
 
     def create_pending_review(
         self,

@@ -254,6 +254,27 @@ class BundleManager:
             )
 
         return statuses
+    
+    def get_group_buffer_status(
+        self,
+        group_id: str,
+        now: float | None = None,
+    ) -> BufferStatus | None:
+        now = self._now(now)
+        group_id = normalize_id(group_id)
+
+        buffer = self.buffers.get(group_id)
+
+        if buffer is None or not buffer.messages:
+            return None
+
+        return BufferStatus(
+            group_id=group_id,
+            message_count=buffer.count,
+            first_message_received_at=buffer.first_message_received_at,
+            last_message_received_at=buffer.last_message_received_at,
+            age_seconds=buffer.age_seconds(now),
+        )
 
     def get_group_message_count(self, group_id: str) -> int:
         group_id = normalize_id(group_id)

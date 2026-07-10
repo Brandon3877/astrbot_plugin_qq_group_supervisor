@@ -60,7 +60,9 @@ class EnhancedQQGroupSupervisor(Star):
         self.loaded_config: LoadedConfig = load_config(config)
 
         self.bundle_manager = BundleManager(self.loaded_config)
-        self.admin_review_manager = AdminReviewManager(review_timeout_seconds=1800)
+        self.admin_review_manager = AdminReviewManager(
+            review_timeout_seconds=self.loaded_config.runtime.admin_review_timeout_minutes * 60
+        )
 
         self.executor = ModerationExecutor(
             runtime=self.loaded_config.runtime,
@@ -110,15 +112,31 @@ class EnhancedQQGroupSupervisor(Star):
 
         assert filter_result.message is not None
 
+        bundle_result = self.bundle_manager.add_message(filter_result.message)
+
         if self.loaded_config.runtime.log_collected_messages:
-            logger.info(
-                "[QQ群监督员] 已收集消息: "
-                f"group={filter_result.message.group_id}, "
-                f"user={filter_result.message.user_id}, "
-                f"message={filter_result.message.message_id}"
+            progress_text = self._format_bundle_progress_text(
+                group_id=filter_result.message.group_id
             )
 
-        bundle_result = self.bundle_manager.add_message(filter_result.message)
+            if bundle_result is None:
+                logger.info(
+                    "[QQ群监督员] 已收集群消息: "
+                    f"group={filter_result.message.group_id}, "
+                    f"user={filter_result.message.user_id}, "
+                    f"message={filter_result.message.message_id}, "
+                    f"{progress_text}"
+                )
+            else:
+                logger.info(
+                    "[QQ群监督员] 已收集群消息，并且触发打包: "
+                    f"group={filter_result.message.group_id}, "
+                    f"user={filter_result.message.user_id}, "
+                    f"message={filter_result.message.message_id}, "
+                    f"bundle_id={bundle_result.bundle.bundle_id}, "
+                    f"bundle_count={len(bundle_result.bundle.messages)}, "
+                    f"trigger={bundle_result.trigger_reason}"
+                )
 
         if bundle_result is None:
             return
@@ -227,6 +245,48 @@ class EnhancedQQGroupSupervisor(Star):
                 node_title="QQ群监督员操作结果",
             )
             return
+
+    def _format_bundle_progress_text(
+        self,
+        *,
+        group_id: str,
+    ) -> str:
+        status = self.bundle_manager.get_group_buffer_status(group_id)
+
+        if status is None:
+            return "buffer=empty"
+
+        runtime = self.loaded_config.runtime
+
+        if runtime.bundle_message_limit > 0:
+            count_text = f"{status.message_count}/{runtime.bundle_message_limit}"
+        else:
+            count_text = f"{status.message_count}/∞"
+
+        if runtime.bundle_time_limit_seconds > 0:
+            age_text = (
+                f"{self._format_seconds(status.age_seconds)}"
+                f"/{self._format_seconds(runtime.bundle_time_limit_seconds)}"
+            )
+        else:
+            age_text = f"{self._format_seconds(status.age_seconds)}/∞"
+
+        return f"buffer={count_text}, age={age_text}"
+
+    @staticmethod
+    def _format_seconds(seconds: float | int) -> str:
+        seconds = int(seconds)
+
+        if seconds < 60:
+            return f"{seconds}s"
+
+        minutes, sec = divmod(seconds, 60)
+
+        if minutes < 60:
+            return f"{minutes}m{sec:02d}s"
+
+        hours, minutes = divmod(minutes, 60)
+        return f"{hours}h{minutes:02d}m{sec:02d}s"
 
     def _is_known_plugin_admin(self, user_id: str) -> bool:
         user_id = normalize_id(user_id)

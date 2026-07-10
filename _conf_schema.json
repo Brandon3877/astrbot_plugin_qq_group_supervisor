@@ -248,6 +248,12 @@
         "default": true,
         "hint": "开启后，有问题且存在建议操作时，先发给管理员确认，确认后才执行群管操作。如需对群聊单独设置，可在上方使用专属管理员模板更改。"
       },
+      "review_timeout_minutes": {
+        "description": "审核请求超时时间（分钟）",
+        "type": "int",
+        "default": 30,
+        "hint": "管理员收到审核请求后，超过此事件未回复执行/取消，请求将自动过期。"
+      },
       "notify_admin_when_no_action": {
         "description": "有问题但无建议操作时仍通知管理员",
         "type": "bool",
