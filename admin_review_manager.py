@@ -582,6 +582,7 @@ def build_admin_notification_nodes(
                 nickname=message.nickname,
                 content=(
                     f"消息ID: {message.message_id}\n"
+                    f"发送时间: {message.formatted_sent_time()}\n"
                     f"用户ID: {message.user_id}\n"
                     f"群身份: {message.role}\n"
                     f"群等级: {message.group_level}\n"

@@ -298,18 +298,36 @@ def extract_message_text(event: Any) -> str:
 
 
 def extract_timestamp(event: Any) -> float:
+    """
+    Extract the original message sending time.
+
+    AstrBot tends to expose it as timestamp, while
+    raw OneBot style events are likely to use time.
+    """
+
     message_obj = safe_get(event, "message_obj")
+    raw_message = safe_get(message_obj, "raw_message")
 
     value = (
         safe_get(message_obj, "timestamp")
+        or safe_get(message_obj, "time")
+        or safe_get(raw_message, "timestamp")
+        or safe_get(raw_message, "time")
         or safe_get(event, "timestamp")
+        or safe_get(event, "time")
         or 0
     )
 
     try:
-        return float(value)
+        timestamp = float(value)
     except (TypeError, ValueError):
         return 0.0
+
+    # Some adapters may supply milliseconds instead of seconds.
+    if timestamp >= 10_000_000_000:
+        timestamp /= 1000.0
+
+    return timestamp
 
 
 def safe_get(obj: Any, key: str, default: Any = None) -> Any:

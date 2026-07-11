@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 from typing import Any, Literal
 
+from datetime import datetime
+
 
 MonitorMode = Literal["whitelist", "blacklist", "all"]
 
@@ -104,6 +106,38 @@ class CollectedMessage:
         Useful for logs, LLM prompt building, and admin review storage.
         """
         return asdict(self)
+    
+    def formatted_sent_time(self) -> str:
+        """
+        Format the original message timestamp using the AstrBot
+        server's local time zone and include its UTC offset.
+        """
+
+        try:
+            timestamp = float(self.timestamp)
+        except (TypeError, ValueError):
+            return "未知"
+
+        if timestamp <= 0:
+            return "未知"
+
+        # Handles timestamp that comes at milliseconds.
+        if timestamp >= 10_000_000_000:
+            timestamp /= 1000.0
+
+        try:
+            dt = datetime.fromtimestamp(timestamp).astimezone()
+        except (OSError, OverflowError, ValueError):
+            return "未知"
+
+        offset = dt.strftime("%z")
+
+        if len(offset) == 5:
+            timezone_text = f"UTC{offset[:3]}:{offset[3:]}"
+        else:
+            timezone_text = dt.tzname() or "本地时间"
+
+        return f"{dt:%Y-%m-%d %H:%M:%S} ({timezone_text})"
 
 
 @dataclass
