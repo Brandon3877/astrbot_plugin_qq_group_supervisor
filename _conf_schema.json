@@ -248,6 +248,12 @@
         "default": true,
         "hint": "开启后，有问题且存在建议操作时，先发给管理员确认，确认后才执行群管操作。如需对群聊单独设置，可在上方使用专属管理员模板更改。"
       },
+      "notify_admin_when_no_action": {
+        "description": "有问题但无建议操作时仍通知管理员",
+        "type": "bool",
+        "default": true,
+        "hint": "如果LLM判断群员行为不符合规范，但未给出建议操作，仍通知管理员。建议保持开启。"
+      },
       "review_timeout_minutes": {
         "description": "审核请求超时时间（分钟）",
         "type": "int",
@@ -259,12 +265,6 @@
         "type": "bool",
         "default": false,
         "hint": "如果审核请求超时，额外发送一条信息通知管理员已超时，否则超时但不额外通知。"
-      },
-      "notify_admin_when_no_action": {
-        "description": "有问题但无建议操作时仍通知管理员",
-        "type": "bool",
-        "default": true,
-        "hint": "如果LLM判断群员行为不符合规范，但未给出建议操作，仍通知管理员。建议保持开启。"
       }
     }
   },
