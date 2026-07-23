@@ -103,12 +103,13 @@ def build_prompt_parts(
      1) 用一句话指出该用户刚才的哪类行为不符合群规；
      2) 保留原始警告用语的提醒意图。
    - 重新生成的 warning_text 必须是一个字符串，不能是数组、对象或字符串列表。
-   - 改写后的 warning_text 应适合直接发送到群聊中，语气克制、礼貌、明确，并且符合真人管理员用语习惯。
+   - 改写后的 warning_text 应适合直接发送到群聊中，语气克制、礼貌、明确。
    - 改写时，需要注意原始警告用语的语气。例如，如果原始语气轻松、活泼，你改写后的警告也需要保持这个风格。
+   - 同时，你将直接代表真人管理员发消息，需要避免警告用语看上去像人机。
    - 不能编造未在消息包中出现的事实。
    - 若该处罚的 rewrite_by_llm 为 false，warning_text 必须照抄该处罚中的 warning_text，不能进行任何改写。
    - 若该处罚的 quote_trigger_message 为 true，则 target_message_id 必须尽量填写最能代表警告原因的 message_id，以便机器人引用该消息发送警告。
-9. 如果处罚类型不是 warn，warning_text 必须为 null。
+9. 如果处罚类型不是 warn，可以省略 warning_text 字段，也可以将其设为 null；即使填写其他内容，该内容也不会被使用。
 
 严重程度 severity 只能使用：
 - none
@@ -277,10 +278,11 @@ def build_output_format() -> dict[str, Any]:
                 ],
                 "reason": "建议执行该操作的简短理由",
                 "warning_text": (
-                    "仅 warn 类型填写；非 warn 类型必须为 null。",
+                    "warn 类型使用的警告文本。",
                     "若为 warn 类型，且该 warn 处罚的 rewrite_by_llm=true，需要输出重新生成后的警告文本；"
                     "若为 warn 类型，且该 warn 处罚的 rewrite_by_llm=false，则必须照抄原始警告文本。"
-                    "若为 warn 类型，填写的必须是 JSON 字符串，不能是数组；若非 warn 类型，则为 null。"
+                    "若为 warn 类型，填写的必须是 JSON 字符串，不能是数组。"
+                    "非 warn 类型可以省略此字段，或设为 null。"
                 ),
             }
         ],

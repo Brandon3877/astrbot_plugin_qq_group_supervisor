@@ -126,11 +126,6 @@ def _validate_single_action(
     target_message_id = normalize_optional_id(suggested_action.target_message_id)
     based_on_message_ids = normalize_id_list(suggested_action.based_on_message_ids)
 
-    if punishment.type != "warn" and suggested_action.warning_text:
-        return None, (
-            f"warning_text must be null for non-warn punishment {punishment_id}."
-        )
-
     if punishment.type == "recall":
         valid, reason, target_user_id, target_message_id = _validate_recall_target(
             bundle=bundle,

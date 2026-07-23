@@ -269,7 +269,6 @@ def _parse_actions(value: Any) -> list[SuggestedAction]:
                 "target_message_id",
                 "based_on_message_ids",
                 "reason",
-                "warning_text",
             ],
             location=location,
         )
@@ -295,8 +294,8 @@ def _parse_actions(value: Any) -> list[SuggestedAction]:
                 ),
                 based_on_message_ids=based_on_message_ids,
                 reason=_parse_str(obj["reason"], f"{location}.reason"),
-                warning_text=_parse_optional_warning_text(
-                    obj["warning_text"],
+                warning_text=_parse_tolerant_warning_text(
+                    obj.get("warning_text"),
                     f"{location}.warning_text",
                 ),
             )
@@ -411,6 +410,57 @@ def _parse_optional_warning_text(value: Any, location: str) -> str | None:
         return None
 
     return text
+
+
+def _parse_tolerant_warning_text(
+    value: Any,
+    location: str,
+) -> str | None:
+    """
+    Parse warning_text without making the entire LLM result fail.
+
+    Accepted:
+        "warning_text": "..."
+        "warning_text": null
+        warning_text omitted
+        "warning_text": ["..."]
+
+    Unexpected objects or nested structures are ignored and become None.
+    The action validator will later decide whether warning text is needed.
+    """
+
+    if value is None:
+        return None
+
+    if isinstance(value, str):
+        text = value.strip()
+
+        if not text or text.lower() == "null":
+            return None
+
+        return text
+
+    if isinstance(value, (int, float, bool)):
+        text = str(value).strip()
+        return text or None
+
+    if isinstance(value, list):
+        parts: list[str] = []
+
+        for item in value:
+            if isinstance(item, str):
+                text = item.strip()
+
+                if text:
+                    parts.append(text)
+
+        if parts:
+            return "\n".join(parts)
+
+        return None
+
+    # Dictionaries and other unexpected structures are harmlessly ignored.
+    return None
 
 
 def _parse_optional_str_id(value: Any, location: str) -> str | None:
